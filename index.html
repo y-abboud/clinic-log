@@ -1,0 +1,981 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body><title>יומן מרפאה</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Rubik:wght@500;700&display=swap">
+<style>
+/* Layout: a single working column, with one color per clinic so the active role is obvious at a glance. */
+:root {
+  --bg: #f3f5f7; --surface: #ffffff; --fg: #17212b; --muted: #5a6875; --line: #d4dbe2;
+  --gen: #1f5a8c; --gen-soft: #e2edf6; --hr: #8a2c5c; --hr-soft: #f6e5ee;
+  --role: #33475b; --role-soft: #e6ebf0; --on-role: #ffffff;
+  --good: #1f7a4d; --warn: #8f5a00; --warn-soft: #fbf0d9; --bad: #b3261e;
+  --display: "Rubik", "Assistant", "Segoe UI", Arial, sans-serif;
+  --body: "Assistant", "Segoe UI", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12181e; --surface: #1b232b; --fg: #e8edf2; --muted: #9dabb8; --line: #333f4b;
+  --gen: #79b4e6; --gen-soft: #1c3347; --hr: #e68fbb; --hr-soft: #3d2030;
+  --role: #a9bbcc; --role-soft: #28333e; --on-role: #12181e;
+  --good: #63c795; --warn: #e5b45c; --warn-soft: #3a2e14; --bad: #f2877f; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #12181e; --surface: #1b232b; --fg: #e8edf2; --muted: #9dabb8; --line: #333f4b;
+  --gen: #79b4e6; --gen-soft: #1c3347; --hr: #e68fbb; --hr-soft: #3d2030;
+  --role: #a9bbcc; --role-soft: #28333e; --on-role: #12181e;
+  --good: #63c795; --warn: #e5b45c; --warn-soft: #3a2e14; --bad: #f2877f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 400 17px/1.5 var(--body); }
+#app { max-width: 720px; margin: 0 auto; padding-block: 16px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.gen { --role: var(--gen); --role-soft: var(--gen-soft); }
+.hr { --role: var(--hr); --role-soft: var(--hr-soft); }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.top h1 { color: var(--role); }
+.stack { display: grid; gap: 16px; } .stack > * { min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 14px; }
+.panel > * { min-width: 0; }
+.banner { background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 8px 12px; font-size: .92rem; margin-bottom: 14px; }
+.note { color: var(--muted); font-size: .92rem; margin: 0; }
+.warn { background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 8px 12px; font-size: .95rem; margin: 0; }
+.err { color: var(--bad); font-weight: 600; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .grid2 > * { min-width: 0; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; } .grid3 > * { min-width: 0; }
+@media (max-width: 480px) { .grid3 { grid-template-columns: 1fr 1fr; } }
+label, .label { display: grid; gap: 4px; font-weight: 600; font-size: .95rem; }
+label small, .label small { font-weight: 400; color: var(--muted); }
+input, select, textarea { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; width: 100%; min-height: 44px; }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--role); outline-offset: 1px; }
+input.num, input.dateinput { direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
+button { font: 600 1rem var(--body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; min-height: 44px; cursor: pointer; }
+button:hover { border-color: var(--role); }
+button:disabled { opacity: .55; cursor: default; }
+.primary { background: var(--role); border-color: var(--role); color: var(--on-role); font-size: 1.1rem; font-family: var(--display); }
+.gen .primary { color: var(--surface); } .hr .primary { color: var(--surface); }
+.link { background: none; border: 0; color: var(--role); padding: 4px 6px; min-height: 36px; text-decoration: underline; }
+.danger { color: var(--bad); }
+.small { min-height: 36px; padding: 4px 10px; font-size: .92rem; }
+.datewrap { display: flex; gap: 6px; } .datewrap input { flex: 1; min-width: 0; }
+.calbtn { width: 44px; padding: 0; display: grid; place-items: center; color: var(--role); flex: none; }
+.calbtn svg { width: 22px; height: 22px; }
+.idrow { align-items: end; }
+.initials { display: flex; gap: 10px; }
+.initials label { font-weight: 400; font-size: .85rem; color: var(--muted); justify-items: center; }
+.initials input { width: 52px; text-align: center; font-weight: 700; padding: 9px 0; }
+.cal { max-width: 340px; width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; background: var(--surface); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.cal-head b { font-family: var(--display); text-align: center; flex: 1; }
+.cal-head button { min-height: 40px; width: 40px; padding: 0; display: grid; place-items: center; color: var(--role); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-variant-numeric: tabular-nums; }
+.cal-grid span { color: var(--muted); font-size: .85rem; font-weight: 600; padding: 4px 0; }
+.cal-grid button { min-height: 40px; padding: 0; border-color: transparent; font-weight: 400; }
+.cal-grid button.is-today { border-color: var(--role); }
+.cal-grid button[aria-pressed=true] { background: var(--role); border-color: var(--role); color: var(--surface); font-weight: 700; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg button[aria-pressed=true], .tog[aria-pressed=true] { background: var(--role); border-color: var(--role); color: var(--surface); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.preset { display: inline-flex; align-items: center; gap: 8px; }
+.preset b { font-variant-numeric: tabular-nums; color: var(--role); }
+.picked { display: inline-flex; align-items: center; gap: 4px; background: var(--role-soft); border-radius: 6px; padding: 2px 4px 2px 10px; font-size: .95rem; }
+.picked button { min-height: 30px; width: 30px; padding: 0; border: 0; background: none; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-weight: 700; background: var(--role-soft); border-radius: 6px; padding: 8px 12px; font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; }
+.row:first-of-type { border-top: 0; padding-top: 0; }
+.row .who { min-width: 0; flex: 1 1 200px; }
+.row .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill { display: inline-block; font-size: .82rem; font-weight: 700; border-radius: 4px; padding: 0 6px; background: var(--role-soft); color: var(--role); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } .grid2.keep { grid-template-columns: 1fr 1fr; } }
+.tile { display: grid; gap: 4px; text-align: right; padding: 22px 18px; background: var(--role); border-color: var(--role); color: var(--surface); border-radius: 8px; }
+.tile strong { font: 700 1.35rem var(--display); }
+.tile span { font-weight: 400; font-size: .95rem; }
+.tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+th { font-size: .88rem; color: var(--muted); font-weight: 600; }
+td.n, th.n { text-align: left; direction: ltr; white-space: nowrap; }
+tr.sum td { font-weight: 700; border-bottom: 0; background: var(--role-soft); }
+tr.grand td { font-weight: 700; font-size: 1.1rem; }
+.scroll { overflow-x: auto; }
+.toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 6px; z-index: 20; max-width: calc(100% - 32px); }
+.toast.bad { background: var(--bad); color: #fff; }
+#invoiceStage { position: fixed; top: 0; left: -3000px; width: 794px; background: #fff; color: #111; }
+.inv { width: 794px; min-height: 1123px; padding: 56px; font: 400 16px/1.5 "Assistant", Arial, sans-serif; background: #fff; color: #111; position: relative; direction: rtl; }
+.inv h2 { font: 700 26px Rubik, Arial, sans-serif; color: #111; }
+.inv table { margin-top: 24px; } .inv th { color: #333; border-bottom: 2px solid #111; font-size: 15px; } .inv td { border-bottom: 1px solid #bbb; }
+.inv .head { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111; padding-bottom: 16px; }
+.inv .meta { margin-top: 20px; display: flex; justify-content: space-between; gap: 24px; }
+.inv .wm { position: absolute; top: 460px; left: 90px; font: 700 64px Rubik, Arial, sans-serif; color: #d9d9d9; transform: rotate(-20deg); }
+@media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s; } }
+</style>
+
+<div id="app" dir="rtl"><p class="note">טוען…</p></div>
+<div id="invoiceStage" aria-hidden="true"></div>
+
+<script>
+/* ---------- Configuration: paste the Azure "Application (client) ID" here to switch from demo to OneDrive ---------- */
+const CONFIG = { clientId: '', folder: 'מעקב מרפאה' };
+
+const LIBS = {
+  msal: 'https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js',
+  excel: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+  jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  h2c: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+  pdfjs: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  pdfWorker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+};
+const ALLOCATION_THRESHOLD = 5000;
+const DEMO = !CONFIG.clientId;
+const MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+
+/* ---------- Pure helpers ---------- */
+const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => '₪' + Number(n || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad = n => String(n).padStart(2, '0');
+const isoDate = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const today = () => isoDate(new Date());
+const fmtDate = s => s ? s.split('-').reverse().join('/') : '';
+/* Dates are shown and typed as dd/mm/yyyy; state keeps ISO so they sort and compare correctly. */
+function parseDate(s) {
+  const m = String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[1]) ? isoDate(d) : null;
+}
+/* Adds the slashes while typing, so digits alone are enough on a phone keypad. */
+function formatDateTyping(raw) {
+  const parts = raw.replace(/[^\d\/.\-]/g, '').split(/[\/.\-]/);
+  for (const i of [0, 1]) {
+    if (parts[i] && parts[i].length > 2) { parts[i + 1] = parts[i].slice(2) + (parts[i + 1] || ''); parts[i] = parts[i].slice(0, 2); }
+  }
+  if (parts[2]) parts[2] = parts[2].slice(0, 4);
+  return parts.slice(0, 3).join('/');
+}
+const quarterOf = s => { const [y, m] = s.split('-').map(Number); return y + 'Q' + Math.ceil(m / 3); };
+const fmtPeriod = p => { if (!p) return ''; const [y, m] = p.split('-').map(Number); return MONTHS[m - 1] + ' ' + y; };
+function fmtPeriodRange(from, to) {
+  if (!to || to === from) return fmtPeriod(from);
+  const [fy, fm] = from.split('-').map(Number), [ty] = to.split('-').map(Number);
+  return (fy === ty ? MONTHS[fm - 1] : fmtPeriod(from)) + ' עד ' + fmtPeriod(to);
+}
+const typeName = t => t === 'new' ? 'ראשון' : 'חוזר';
+
+function defaults() {
+  return {
+    v: 1,
+    rates: { genNew: 119.88, genRet: 0, point: 23.9, iud: 305.93, hrNew: 180, hrRet: 100, vat: 18 },
+    treatments: [{ id: 'us-gyn', name: 'US Gynecology', points: 1.2 }],
+    visits: [], payments: [], invoices: [],
+    issuer: { name: '', address: '', phone: '', osek: '300969664' },
+    customer: { name: 'מכבי שירותי בריאות', address: 'המרד 27, תל אביב', taxId: '', supplierNo: '' },
+    docTitle: 'חשבונית מס',
+    service: 'שירותי רפואה: רופא נשים ורופא הריון בסיכון גבוה',
+    nextInvoiceNo: 1
+  };
+}
+function normalize(raw) {
+  const d = defaults();
+  if (!raw) return d;
+  return { ...d, ...raw, rates: { ...d.rates, ...raw.rates }, issuer: { ...d.issuer, ...raw.issuer }, customer: { ...d.customer, ...raw.customer } };
+}
+
+/* The money for a visit is fixed when it is saved, so a later rate change does not rewrite past reports. */
+function visitPay(v, r) {
+  if (v.role === 'hr') return { visit: v.type === 'new' ? r.hrNew : r.hrRet, points: 0, iud: 0 };
+  return { visit: v.type === 'new' ? r.genNew : r.genRet, points: round2((v.points || 0) * r.point), iud: v.iud ? r.iud : 0 };
+}
+const visitTotal = v => round2(v.pay.visit + v.pay.points + v.pay.iud);
+
+function summarize(visits, from, to, vatPct) {
+  const inRange = visits.filter(v => v.date >= from && v.date <= to);
+  const s = { gen: { newN: 0, retN: 0, points: 0, iudN: 0, newM: 0, retM: 0, pointsM: 0, iudM: 0, total: 0 }, hr: { newN: 0, retN: 0, newM: 0, retM: 0, total: 0 }, rows: inRange };
+  for (const v of inRange) {
+    const t = s[v.role];
+    if (v.type === 'new') { t.newN++; t.newM += v.pay.visit; } else { t.retN++; t.retM += v.pay.visit; }
+    if (v.role === 'gen') { t.points += v.points || 0; t.pointsM += v.pay.points; if (v.iud) { t.iudN++; t.iudM += v.pay.iud; } }
+  }
+  for (const k of ['newM', 'retM', 'pointsM', 'iudM', 'points']) s.gen[k] = round2(s.gen[k]);
+  s.hr.newM = round2(s.hr.newM); s.hr.retM = round2(s.hr.retM);
+  s.gen.total = round2(s.gen.newM + s.gen.retM + s.gen.pointsM + s.gen.iudM);
+  s.hr.total = round2(s.hr.newM + s.hr.retM);
+  s.subtotal = round2(s.gen.total + s.hr.total);
+  s.vat = round2(s.subtotal * vatPct / 100);
+  s.grand = round2(s.subtotal + s.vat);
+  return s;
+}
+
+/* Finds the amount and VAT by arithmetic (amount × rate = VAT, amount + VAT = total) rather than by label,
+   because Hebrew text extracted from PDFs often comes back out of order. */
+function detectAmounts(text, vatPct) {
+  const clean = text.replace(/\b\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}\b/g, ' ');
+  const found = clean.match(/\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{1,2}|\d{3,}/g) || [];
+  const nums = [...new Set(found.map(x => Number(x.replace(/,/g, ''))))].filter(n => n >= 1).sort((a, b) => b - a);
+  const near = (a, b, tol) => Math.abs(a - b) <= tol;
+  for (const rate of [vatPct / 100, 0.17]) {
+    let pair = null;
+    for (const a of nums) {
+      const v = nums.find(x => near(x, a * rate, 0.05));
+      if (v == null) continue;
+      if (nums.some(t => near(t, a + v, 0.05))) return { amount: a, vat: v, certain: true };
+      pair = pair || { amount: a, vat: v, certain: false };
+    }
+    if (pair) return pair;
+  }
+  return null;
+}
+function detectPeriod(text) {
+  const m = text.match(/(?<![\d\/.\-])(0?[1-9]|1[0-2])[\/.\-](20\d{2})(?![\d\/.\-])/);
+  if (m) return m[2] + '-' + pad(Number(m[1]));
+  for (let i = 0; i < 12; i++) {
+    const h = text.match(new RegExp(MONTHS[i] + '\\s*(20\\d{2})'));
+    if (h) return h[1] + '-' + pad(i + 1);
+  }
+  return null;
+}
+function previousMonth(dateStr) {
+  const [y, m] = dateStr.split('-').map(Number);
+  return m === 1 ? (y - 1) + '-12' : y + '-' + pad(m - 1);
+}
+
+/* ---------- Storage backends: both expose load, save, putFile, getFile, deleteFile ---------- */
+function conflictError() { const e = new Error('conflict'); e.conflict = true; return e; }
+
+function GraphBackend(getToken, fetchFn, folder) {
+  const base = 'https://graph.microsoft.com/v1.0/me/drive/root:/';
+  const itemUrl = path => base + [folder, ...path.split('/')].map(encodeURIComponent).join('/');
+  const call = async (url, opts = {}) => {
+    const headers = { Authorization: 'Bearer ' + await getToken(), ...(opts.headers || {}) };
+    return fetchFn(url, { ...opts, headers });
+  };
+  const fail = async (r, what) => { throw new Error(what + ' נכשל (' + r.status + ')'); };
+  /* Graph's /content redirect is not CORS-safe in browsers; the pre-authenticated download URL is. */
+  const meta = async path => {
+    const r = await call(itemUrl(path) + ':?$select=id,eTag,@microsoft.graph.downloadUrl');
+    if (r.status === 404) return null;
+    if (!r.ok) await fail(r, 'קריאה מ-OneDrive');
+    return r.json();
+  };
+  const putSmall = (path, body, type, extra = {}) => call(itemUrl(path) + ':/content', { method: 'PUT', body, headers: { 'Content-Type': type, ...extra } });
+  return {
+    async load() {
+      const m = await meta('data.json');
+      if (!m) return { data: null, etag: null };
+      const r = await fetchFn(m['@microsoft.graph.downloadUrl']);
+      if (!r.ok) await fail(r, 'קריאת הנתונים');
+      return { data: await r.json(), etag: m.eTag };
+    },
+    async save(data, etag) {
+      const r = await putSmall('data.json', JSON.stringify(data), 'application/json', etag ? { 'If-Match': etag } : { 'If-None-Match': '*' });
+      if (r.status === 412 || r.status === 409) throw conflictError();
+      if (!r.ok) await fail(r, 'שמירה ל-OneDrive');
+      return (await r.json()).eTag;
+    },
+    async putFile(path, blob) {
+      const type = blob.type || 'application/pdf';
+      if (blob.size <= 4 * 1024 * 1024) {
+        const r = await putSmall(path, blob, type);
+        if (!r.ok) await fail(r, 'העלאת קובץ');
+        return;
+      }
+      const s = await call(itemUrl(path) + ':/createUploadSession', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item: { '@microsoft.graph.conflictBehavior': 'replace' } }) });
+      if (!s.ok) await fail(s, 'העלאת קובץ');
+      const { uploadUrl } = await s.json();
+      const chunk = 320 * 1024 * 10;
+      for (let i = 0; i < blob.size; i += chunk) {
+        const end = Math.min(i + chunk, blob.size);
+        const r = await fetchFn(uploadUrl, { method: 'PUT', body: blob.slice(i, end), headers: { 'Content-Range': 'bytes ' + i + '-' + (end - 1) + '/' + blob.size } });
+        if (!r.ok) await fail(r, 'העלאת קובץ');
+      }
+    },
+    async getFile(path) {
+      const m = await meta(path);
+      if (!m) throw new Error('הקובץ לא נמצא ב-OneDrive');
+      const r = await fetchFn(m['@microsoft.graph.downloadUrl']);
+      if (!r.ok) await fail(r, 'הורדת הקובץ');
+      return r.blob();
+    },
+    async deleteFile(path) {
+      const r = await call(itemUrl(path), { method: 'DELETE' });
+      if (!r.ok && r.status !== 404) await fail(r, 'מחיקת קובץ');
+    }
+  };
+}
+
+function DemoBackend() {
+  const memory = new Map();
+  const dbp = new Promise(res => {
+    try {
+      const o = indexedDB.open('clinic-demo', 1);
+      o.onupgradeneeded = () => o.result.createObjectStore('kv');
+      o.onsuccess = () => res(o.result);
+      o.onerror = () => res(null);
+    } catch (e) { res(null); }
+  });
+  const get = async k => {
+    const db = await dbp;
+    if (!db) return memory.get(k);
+    return new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(memory.get(k)); });
+  };
+  const put = async (k, v) => {
+    memory.set(k, v);
+    const db = await dbp;
+    if (!db) return;
+    await new Promise(res => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; });
+  };
+  return {
+    async load() { return { data: (await get('data')) || null, etag: 'demo' }; },
+    async save(data) { await put('data', JSON.parse(JSON.stringify(data))); return 'demo'; },
+    async putFile(path, blob) { await put('file:' + path, blob); },
+    async getFile(path) { const b = await get('file:' + path); if (!b) throw new Error('הקובץ לא נמצא'); return b; },
+    async deleteFile(path) { await put('file:' + path, null); }
+  };
+}
+
+/* mutate re-applies the change on the latest data after a conflict, so two devices cannot lose entries or reuse an invoice number. */
+function makeStore(backend) {
+  const store = {
+    state: null, etag: null,
+    async refresh() { const r = await backend.load(); store.state = normalize(r.data); store.etag = r.etag; store.isNew = !r.data; },
+    async mutate(fn) {
+      for (let i = 0; i < 5; i++) {
+        const draft = JSON.parse(JSON.stringify(store.state));
+        const out = fn(draft);
+        try {
+          store.etag = await backend.save(draft, store.etag);
+          store.state = draft;
+          return out;
+        } catch (e) {
+          if (!e.conflict) throw e;
+          await store.refresh();
+        }
+      }
+      throw new Error('השמירה נכשלה: הנתונים השתנו במכשיר אחר. נסה שוב.');
+    },
+    backend
+  };
+  return store;
+}
+
+/* ---------- Library loading and file delivery ---------- */
+const scriptCache = {};
+function loadScript(url) {
+  return scriptCache[url] = scriptCache[url] || new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = url; s.onload = res; s.onerror = () => { delete scriptCache[url]; rej(new Error('טעינת רכיב נכשלה. בדוק את החיבור לאינטרנט.')); };
+    document.head.appendChild(s);
+  });
+}
+async function deliverFile(blob, filename) {
+  if (window.claude && window.claude.use) {
+    const dl = await window.claude.use('downloads');
+    if (dl) {
+      try { await dl.save({ filename, data: blob }); } catch (e) { if (e.code !== 'declined') throw new Error('ההורדה נכשלה'); }
+      return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* ---------- Excel report ---------- */
+function buildWorkbook(s, from, to, vatPct) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('סיכום', { views: [{ rightToLeft: true }] });
+  ws.columns = [{ width: 34 }, { width: 12 }, { width: 16 }];
+  const MONEY = '#,##0.00 "₪"';
+  const thin = { style: 'thin', color: { argb: 'FFB8C2CC' } };
+  const paint = (row, argb, font) => row.eachCell({ includeEmpty: true }, c => {
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+    c.font = font; c.border = { top: thin, bottom: thin, left: thin, right: thin };
+  });
+  ws.addRow(['דו"ח ביקורים וטיפולים']).font = { bold: true, size: 15 };
+  ws.addRow([fmtDate(from) + ' עד ' + fmtDate(to)]);
+  ws.addRow([]);
+  const table = (title, argb, rows, total) => {
+    ws.addRow([title]).font = { bold: true, size: 12, color: { argb } };
+    paint(ws.addRow(['פריט', 'כמות', 'סכום']), argb, { bold: true, color: { argb: 'FFFFFFFF' } });
+    const first = ws.rowCount + 1;
+    for (const [name, qty, sum] of rows) {
+      const r = ws.addRow([name, qty, sum]);
+      r.getCell(3).numFmt = MONEY;
+      r.eachCell({ includeEmpty: true }, c => { c.border = { top: thin, bottom: thin, left: thin, right: thin }; });
+    }
+    const last = ws.rowCount;
+    const r = ws.addRow([total.label, null, { formula: 'SUM(C' + first + ':C' + last + ')', result: total.value }]);
+    r.getCell(3).numFmt = MONEY;
+    paint(r, 'FFE6EBF0', { bold: true });
+    ws.addRow([]);
+    return r.number;
+  };
+  const a = table('מרפאת נשים כללית', 'FF1F5A8C', [
+    ['ביקורים ראשונים ברבעון', s.gen.newN, s.gen.newM],
+    ['ביקורים חוזרים', s.gen.retN, s.gen.retM],
+    ['נקודות טיפול', s.gen.points, s.gen.pointsM],
+    ['התקנים', s.gen.iudN, s.gen.iudM]
+  ], { label: 'סה"כ נשים כללית', value: s.gen.total });
+  const b = table('מרפאת הריון בסיכון גבוה', 'FF8A2C5C', [
+    ['מטופלות חדשות', s.hr.newN, s.hr.newM],
+    ['ביקורים חוזרים', s.hr.retN, s.hr.retM]
+  ], { label: 'סה"כ הריון בסיכון גבוה', value: s.hr.total });
+  const line = (label, formula, value, bold) => {
+    const r = ws.addRow([label, null, { formula, result: value }]);
+    r.getCell(3).numFmt = MONEY;
+    if (bold) paint(r, 'FFE6EBF0', { bold: true, size: 12 });
+    return r.number;
+  };
+  const sub = line('סה"כ שתי המרפאות (לפני מע"מ)', 'C' + a + '+C' + b, s.subtotal, true);
+  const vat = line('מע"מ ' + vatPct + '%', 'ROUND(C' + sub + '*' + vatPct / 100 + ',2)', s.vat, false);
+  line('סה"כ כולל מע"מ', 'C' + sub + '+C' + vat, s.grand, true);
+
+  const d = wb.addWorksheet('פירוט', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
+  d.columns = [{ header: 'תאריך', width: 12 }, { header: 'מרפאה', width: 20 }, { header: 'ראשי תיבות', width: 12 }, { header: 'ת"ז', width: 12 }, { header: 'ביקור', width: 9 }, { header: 'טיפולים', width: 30 }, { header: 'נקודות', width: 9 }, { header: 'סוג התקן', width: 18 }, { header: 'סכום לפני מע"מ', width: 15 }];
+  d.getRow(1).font = { bold: true };
+  [...s.rows].sort((x, y) => x.date.localeCompare(y.date)).forEach(v => {
+    const r = d.addRow([fmtDate(v.date), v.role === 'gen' ? 'נשים כללית' : 'הריון בסיכון גבוה', v.initials || '', v.idNo || '', typeName(v.type),
+      (v.treatments || []).map(t => t.name + (t.count > 1 ? ' ×' + t.count : '')).join(', '), v.role === 'gen' ? (v.points || 0) : '', v.iud ? (v.iudType || 'התקן') : '', visitTotal(v)]);
+    r.getCell(9).numFmt = MONEY;
+  });
+  return wb;
+}
+
+/* ---------- Tax invoice ---------- */
+function invoiceHtml(inv, mark) {
+  const row = (l, v) => v ? '<div>' + esc(l) + ': <b>' + esc(v) + '</b></div>' : '';
+  return '<div class="inv">' + (DEMO ? '<div class="wm">הדגמה, לא מסמך תקף</div>' : '') +
+    '<div class="head"><div><h2>' + esc(inv.issuer.name) + '</h2><div>' + esc(inv.issuer.address) + '</div>' + (inv.issuer.phone ? '<div>טלפון: <span dir="ltr">' + esc(inv.issuer.phone) + '</span></div>' : '') +
+    '<div>עוסק מורשה מס\' <b>' + esc(inv.issuer.osek) + '</b></div></div>' +
+    '<div style="text-align:left"><h2>' + esc(inv.docTitle) + ' מס\' ' + esc(inv.no) + '</h2><div><b>' + esc(mark) + '</b></div><div>תאריך: ' + fmtDate(inv.date) + '</div></div></div>' +
+    '<div class="meta"><div><div>לכבוד:</div><div><b>' + esc(inv.customer.name) + '</b></div><div>' + esc(inv.customer.address) + '</div>' + row('ח.פ./ע.מ.', inv.customer.taxId) + row('מספר ספק', inv.customer.supplierNo) + '</div>' +
+    '<div>' + row(inv.periodTo && inv.periodTo !== inv.period ? 'עבור התקופה' : 'עבור חודש', fmtPeriodRange(inv.period, inv.periodTo)) + row('מספר הקצאה', inv.allocationNo) + '</div></div>' +
+    '<table><thead><tr><th>תיאור השירות</th><th class="n">סכום</th></tr></thead><tbody>' +
+    '<tr><td>' + esc(inv.service) + ' עבור ' + esc(fmtPeriodRange(inv.period, inv.periodTo)) + '</td><td class="n">' + money(inv.amount) + '</td></tr>' +
+    '<tr><td>סכום לפני מע"מ</td><td class="n">' + money(inv.amount) + '</td></tr>' +
+    '<tr><td>מע"מ ' + esc(inv.vatRate) + '%</td><td class="n">' + money(inv.vat) + '</td></tr>' +
+    '<tr><td><b>סה"כ כולל מע"מ</b></td><td class="n"><b>' + money(inv.total) + '</b></td></tr>' +
+    '</tbody></table><div style="margin-top:72px">חתימה: ______________________</div></div>';
+}
+async function invoicePdf(inv, mark) {
+  await Promise.all([loadScript(LIBS.h2c), loadScript(LIBS.jspdf)]);
+  const stage = document.getElementById('invoiceStage');
+  stage.innerHTML = invoiceHtml(inv, mark);
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  const canvas = await html2canvas(stage.firstChild, { scale: 2, backgroundColor: '#ffffff', logging: false });
+  stage.innerHTML = '';
+  const pdf = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+  return pdf.output('blob');
+}
+async function readPdfText(file) {
+  await loadScript(LIBS.pdfjs);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = LIBS.pdfWorker;
+  const doc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  let text = '';
+  for (let p = 1; p <= doc.numPages; p++) {
+    const c = await (await doc.getPage(p)).getTextContent();
+    text += c.items.map(i => i.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+/* ---------- App state and rendering ---------- */
+let store, view = 'home', account = null, signOut = null;
+let F = null, formError = '', R = null, P = null, I = null, S = null, payYear = 'all', armed = null;
+const $ = id => document.getElementById(id);
+const st = () => store.state;
+
+function toast(msg, bad) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div');
+  t.className = 'toast' + (bad ? ' bad' : ''); t.setAttribute('role', 'status'); t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), bad ? 6000 : 2600);
+}
+function go(v) {
+  view = v;
+  if (v === 'gen' || v === 'hr') { F = blankForm(F && F.role === v ? F.date : today(), v); formError = ''; }
+  if (v === 'report' && !R) { const t = today(); R = { from: t.slice(0, 8) + '01', to: t }; }
+  if (v === 'setup') S = null;
+  try { if (location.hash.slice(1) !== v) location.hash = v === 'home' ? '' : v; } catch (e) {}
+  render(); window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', () => {
+  const h = location.hash.slice(1) || 'home';
+  if (store && h !== view && ['home', 'gen', 'hr', 'report', 'payments', 'setup'].includes(h)) go(h);
+});
+function blankForm(date, role) { return { role, editingId: null, date, initLast: '', initFirst: '', idNo: '', type: '', picks: [], manual: '', iud: false, iudType: '', addOpen: false }; }
+
+function dateField(id, value, label, attrs) {
+  const shown = fmtDate(value);
+  return '<div class="label"><label for="' + id + '">' + esc(label) + '</label><div class="datewrap"><input type="text" class="dateinput" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="dd/mm/yyyy" data-date="1" data-last="' + esc(shown) + '" id="' + id + '" value="' + esc(shown) + '" ' + (attrs || '') + '><button type="button" class="calbtn" data-act="pick" data-for="' + id + '" aria-label="פתיחת לוח שנה" aria-expanded="false">' + CAL + '</button></div></div>';
+}
+/* The calendar is drawn by the page because the browser's own picker is blocked inside embedded frames. */
+let cal = null;
+function closeCal() { if (cal) { cal.el.remove(); cal = null; } }
+function openCal(input) {
+  closeCal();
+  const iso = parseDate(input.value) || today(), [y, m] = iso.split('-').map(Number);
+  const el = document.createElement('div');
+  el.className = 'cal';
+  (input.closest('.grid2') || input.closest('.label')).after(el);
+  cal = { el, input, y, m: m - 1 };
+  drawCal();
+}
+function drawCal() {
+  const { y, m, input } = cal, selected = parseDate(input.value), now = today();
+  const first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
+  let cells = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(d => '<span>' + d + '</span>').join('') + '<i></i>'.repeat(first);
+  for (let d = 1; d <= days; d++) {
+    const iso = y + '-' + pad(m + 1) + '-' + pad(d);
+    cells += '<button type="button" data-act="calDay" data-iso="' + iso + '" aria-label="' + fmtDate(iso) + '" aria-pressed="' + (iso === selected) + '"' + (iso === now ? ' class="is-today"' : '') + '>' + d + '</button>';
+  }
+  /* Drawn as paths because text arrows get mirrored by the browser in right-to-left pages.
+     The month order follows the grid: earlier on the right pointing right, later on the left pointing left. */
+  const RIGHT = 'M8 5l7 7-7 7', LEFT = 'M16 5l-7 7 7 7', RIGHT2 = 'M5 5l7 7-7 7M12 5l7 7-7 7', LEFT2 = 'M19 5l-7 7 7 7M12 5l-7 7 7 7';
+  const nav = (dm, path, aria) => '<button type="button" data-act="calNav" data-dm="' + dm + '" aria-label="' + aria + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + path + '"/></svg></button>';
+  cal.el.innerHTML = '<div class="cal-head">' + nav(-12, RIGHT2, 'שנה קודמת') + nav(-1, RIGHT, 'חודש קודם') + '<b>' + MONTHS[m] + ' ' + y + '</b>' + nav(1, LEFT, 'חודש הבא') + nav(12, LEFT2, 'שנה הבאה') + '</div><div class="cal-grid">' + cells + '</div>';
+}
+function backBar(title, role) {
+  return '<div class="top"><h1>' + esc(title) + '</h1><button type="button" data-act="nav" data-to="home">חזרה לבחירת תפקיד</button></div>';
+}
+function render() {
+  closeCal();
+  const banner = DEMO ? '<div class="banner">מצב הדגמה: הנתונים נשמרים רק בדפדפן הזה ולא ב-OneDrive. לא להזין כאן פרטי מטופלות אמיתיים.</div>' : '';
+  const body = { home: viewHome, gen: () => viewVisit('gen'), hr: () => viewVisit('hr'), report: viewReport, payments: viewPayments, invoice: viewInvoice, setup: viewSetup }[view]();
+  $('app').className = view === 'gen' ? 'gen' : view === 'hr' ? 'hr' : '';
+  $('app').innerHTML = banner + body;
+  if (view === 'gen' || view === 'hr') updateFormBits();
+}
+function viewHome() {
+  const t = today(), s = st();
+  const n = r => s.visits.filter(v => v.role === r && v.date === t).length;
+  return '<div class="top"><h1>יומן מרפאה</h1>' + (account ? '<div class="note">' + esc(account) + ' <button class="link" data-act="signout">יציאה</button></div>' : '') + '</div>' +
+    '<div class="stack"><p class="note">באיזה תפקיד אתה עובד עכשיו?</p><div class="tiles">' +
+    '<button class="tile gen" data-act="nav" data-to="gen"><strong>רופא נשים כללי</strong><span>היום: ' + n('gen') + ' ביקורים</span></button>' +
+    '<button class="tile hr" data-act="nav" data-to="hr"><strong>הריון בסיכון גבוה</strong><span>היום: ' + n('hr') + ' ביקורים</span></button></div>' +
+    '<div class="tools"><button data-act="nav" data-to="report">דו"ח</button><button data-act="nav" data-to="payments">תשלומים</button><button data-act="nav" data-to="setup">הגדרות</button></div></div>';
+}
+function viewVisit(role) {
+  const s = st(), gen = role === 'gen';
+  const presets = s.treatments.map(t => '<button type="button" class="preset" data-act="addPick" data-name="' + esc(t.name) + '" data-points="' + t.points + '">' + esc(t.name) + '<b>' + t.points + '</b></button>').join('');
+  const genPart = !gen ? '' :
+    '<div class="label"><span>טיפולים ובדיקות <small>לחיצה מוסיפה את הנקודות שהוגדרו</small></span><div class="chips">' + presets + '<button type="button" class="small link" data-act="toggleAdd">+ טיפול חדש</button></div></div>' +
+    (F.addOpen ? '<div class="grid2 keep"><label>שם הטיפול<input id="newName" autocomplete="off"></label><label>נקודות<input id="newPoints" class="num" inputmode="decimal"></label></div><div><button type="button" class="small" data-act="saveTreatment">שמור טיפול ברשימה</button></div>' : '') +
+    '<div id="pickedBox"></div>' +
+    '<label>נקודות נוספות ידנית <small>לא חובה</small><input id="f_manual" data-f="manual" class="num" inputmode="decimal" value="' + esc(F.manual) + '"></label>' +
+    '<div><button type="button" class="tog" data-act="toggleIud" aria-pressed="' + F.iud + '">הכנסת התקן</button></div>' +
+    (F.iud ? '<label>סוג ההתקן<input id="f_iudType" data-f="iudType" list="iudTypes" autocomplete="off" value="' + esc(F.iudType) + '"><datalist id="iudTypes">' + [...new Set(s.visits.map(v => v.iudType).filter(Boolean))].map(x => '<option value="' + esc(x) + '">').join('') + '</datalist></label>' : '');
+  const newLabel = gen ? 'ביקור ראשון ברבעון' : 'מטופלת חדשה';
+  return backBar(gen ? 'רופא נשים כללי' : 'הריון בסיכון גבוה') +
+    '<div class="stack"><form class="panel" id="visitForm" autocomplete="off">' +
+    (F.editingId ? '<p class="warn">עריכת ביקור קיים. <button type="button" class="link" data-act="cancelEdit">ביטול</button></p>' : '') +
+    dateField('f_date', F.date, 'תאריך', 'data-f="date"') +
+    '<div class="grid2 keep idrow"><div class="label"><span>ראשי תיבות <small>לא חובה</small></span><div class="initials">' +
+    '<label>משפחה<input id="f_initLast" data-f="initLast" maxlength="1" value="' + esc(F.initLast) + '"></label>' +
+    '<label>פרטי<input id="f_initFirst" data-f="initFirst" maxlength="1" value="' + esc(F.initFirst) + '"></label></div></div>' +
+    '<label>תעודת זהות <small>9 ספרות, לא חובה</small><input id="f_idNo" data-f="idNo" class="num" inputmode="numeric" maxlength="9" value="' + esc(F.idNo) + '"></label></div>' +
+    '<div class="label"><span>סוג הביקור</span><div class="seg"><button type="button" data-act="setType" data-type="new" aria-pressed="' + (F.type === 'new') + '">' + newLabel + '</button><button type="button" data-act="setType" data-type="ret" aria-pressed="' + (F.type === 'ret') + '">ביקור חוזר</button></div></div>' +
+    '<p class="warn" id="quarterHint" hidden></p>' + genPart +
+    '<div class="total" id="liveTotal"></div>' +
+    (formError ? '<p class="err" role="alert">' + esc(formError) + '</p>' : '') +
+    '<button type="submit" class="primary" id="submitBtn">' + (F.editingId ? 'עדכן שינויים' : 'עדכן') + '</button></form>' +
+    dayList(role) + '</div>';
+}
+function dayList(role) {
+  const list = st().visits.filter(v => v.role === role && v.date === F.date);
+  if (!list.length) return '<div class="panel"><h2>ביקורים ב-' + fmtDate(F.date) + '</h2><p class="note">עדיין אין ביקורים בתאריך הזה. ביקור שתעדכן יופיע כאן.</p></div>';
+  const rows = list.map(v => '<div class="row"><div class="who"><b>' + esc(v.initials || 'ללא שם') + '</b> ' + (v.idNo ? '<span class="note">' + esc(v.idNo) + '</span> ' : '') + '<span class="pill">' + typeName(v.type) + '</span>' +
+    (v.role === 'gen' && v.points ? ' <span class="note">' + round2(v.points) + ' נק\'</span>' : '') + (v.iud ? ' <span class="pill">התקן' + (v.iudType ? ': ' + esc(v.iudType) : '') + '</span>' : '') + '<div class="note">' + money(visitTotal(v)) + '</div></div>' +
+    '<div class="acts"><button class="small" data-act="editVisit" data-id="' + v.id + '">עריכה</button><button class="small danger" data-act="delVisit" data-id="' + v.id + '">' + (armed === v.id ? 'לאשר מחיקה?' : 'מחיקה') + '</button></div></div>').join('');
+  return '<div class="panel"><h2>ביקורים ב-' + fmtDate(F.date) + ' (' + list.length + ')</h2>' + rows + '<div class="total"><span>סה"כ ליום, לפני מע"מ</span><span>' + money(list.reduce((a, v) => a + visitTotal(v), 0)) + '</span></div></div>';
+}
+function formVisit() {
+  const treatments = F.picks.map(p => ({ ...p }));
+  const manual = Number(F.manual) || 0;
+  const points = F.role === 'gen' ? round2(treatments.reduce((a, t) => a + t.points * t.count, 0) + manual) : 0;
+  const initLast = F.initLast.trim(), initFirst = F.initFirst.trim();
+  return { role: F.role, date: F.date, initLast, initFirst, initials: [initLast, initFirst].filter(Boolean).join('.'), idNo: F.idNo.trim(), type: F.type, treatments: F.role === 'gen' ? treatments : [], manual: F.role === 'gen' ? manual : 0, points, iud: F.role === 'gen' && F.iud, iudType: F.role === 'gen' && F.iud ? F.iudType.trim() : '' };
+}
+/* Updates parts of the form that change while typing, without re-rendering and losing focus. */
+function updateFormBits() {
+  const v = formVisit(), s = st();
+  const box = $('pickedBox');
+  if (box) box.innerHTML = F.picks.length ? '<div class="chips">' + F.picks.map((p, i) => '<span class="picked">' + esc(p.name) + (p.count > 1 ? ' ×' + p.count : '') + '<button type="button" data-act="removePick" data-i="' + i + '" aria-label="הסרה">×</button></span>').join('') + '</div>' : '';
+  const pay = v.type ? visitPay(v, s.rates) : { visit: 0, points: visitPay({ ...v, type: 'ret' }, s.rates).points, iud: v.iud ? s.rates.iud : 0 };
+  const tot = $('liveTotal');
+  if (tot) tot.innerHTML = '<span>' + (F.role === 'gen' ? round2(v.points) + ' נקודות · ' : '') + 'לפני מע"מ</span><span>' + money(pay.visit + pay.points + pay.iud) + '</span>';
+  const hint = $('quarterHint');
+  if (hint) {
+    const prior = v.idNo.length >= 5 && v.type === 'new' ? s.visits.find(x => x.id !== F.editingId && x.role === F.role && x.idNo === v.idNo && quarterOf(x.date) === quarterOf(F.date)) : null;
+    hint.hidden = !(prior && F.role === 'gen');
+    if (prior) hint.textContent = 'למטופלת הזאת כבר רשום ביקור ברבעון הזה, בתאריך ' + fmtDate(prior.date) + '. בדוק שזה אכן ביקור ראשון.';
+  }
+}
+function viewReport() {
+  const s = st(), r = summarize(s.visits, R.from, R.to, s.rates.vat);
+  const bad = R.from > R.to;
+  const row = (l, q, m) => '<tr><td>' + esc(l) + '</td><td class="n">' + q + '</td><td class="n">' + money(m) + '</td></tr>';
+  const head = '<thead><tr><th>פריט</th><th class="n">כמות</th><th class="n">סכום</th></tr></thead>';
+  return backBar('דו"ח') + '<div class="stack"><div class="panel"><div class="grid2 keep">' + dateField('r_from', R.from, 'מתאריך', 'data-r="from"') + dateField('r_to', R.to, 'עד תאריך', 'data-r="to"') + '</div>' +
+    '<div class="chips"><button class="small" data-act="range" data-r="this">החודש</button><button class="small" data-act="range" data-r="last">חודש קודם</button></div>' + (bad ? '<p class="err">תאריך ההתחלה מאוחר מתאריך הסיום.</p>' : '') + '</div>' +
+    (bad ? '' :
+    '<div class="panel gen"><h2 style="color:var(--gen)">מרפאת נשים כללית</h2><div class="scroll"><table>' + head + '<tbody>' + row('ביקורים ראשונים ברבעון', r.gen.newN, r.gen.newM) + row('ביקורים חוזרים', r.gen.retN, r.gen.retM) + row('נקודות טיפול', r.gen.points, r.gen.pointsM) + row('התקנים', r.gen.iudN, r.gen.iudM) +
+    '<tr class="sum"><td>סה"כ</td><td></td><td class="n">' + money(r.gen.total) + '</td></tr></tbody></table></div></div>' +
+    '<div class="panel hr"><h2 style="color:var(--hr)">מרפאת הריון בסיכון גבוה</h2><div class="scroll"><table>' + head + '<tbody>' + row('מטופלות חדשות', r.hr.newN, r.hr.newM) + row('ביקורים חוזרים', r.hr.retN, r.hr.retM) +
+    '<tr class="sum"><td>סה"כ</td><td></td><td class="n">' + money(r.hr.total) + '</td></tr></tbody></table></div></div>' +
+    '<div class="panel"><div class="scroll"><table><tbody><tr><td>סה"כ שתי המרפאות</td><td class="n">' + money(r.subtotal) + '</td></tr><tr><td>מע"מ ' + s.rates.vat + '%</td><td class="n">' + money(r.vat) + '</td></tr><tr class="grand"><td>סה"כ כולל מע"מ</td><td class="n">' + money(r.grand) + '</td></tr></tbody></table></div>' +
+    '<button class="primary" style="--role:#1f7a4d" data-act="excel">הורדה לאקסל</button></div>') + '</div>';
+}
+function viewPayments() {
+  const s = st(), years = [...new Set(s.payments.map(p => p.date.slice(0, 4)))].sort().reverse();
+  const list = s.payments.filter(p => payYear === 'all' || p.date.startsWith(payYear)).sort((a, b) => b.date.localeCompare(a.date));
+  const rows = list.map(p => {
+    const inv = s.invoices.find(i => i.paymentId === p.id);
+    return '<div class="row"><div class="who"><b>' + fmtDate(p.date) + '</b> <span class="pill">' + esc(fmtPeriod(p.period)) + '</span><div class="note">' + money(p.amount) + ' + מע"מ ' + money(p.vat) + ' = ' + money(round2(p.amount + p.vat)) + '</div></div><div class="acts">' +
+      (p.file ? '<button class="small" data-act="openPdf" data-id="' + p.id + '">פירוט PDF</button>' : '') +
+      (inv ? '<button class="small" data-act="invCopy" data-id="' + inv.id + '">חשבונית ' + esc(inv.no) + '</button>' : '<button class="small" data-act="invNew" data-id="' + p.id + '">הפקת חשבונית</button><button class="small danger" data-act="delPay" data-id="' + p.id + '">' + (armed === p.id ? 'לאשר מחיקה?' : 'מחיקה') + '</button>') + '</div></div>';
+  }).join('');
+  return backBar('תשלומים') + '<div class="stack"><div class="panel"><h2>שמירת פירוט תשלום</h2>' +
+    (!P ? '<label>קובץ PDF של פירוט התשלום<input type="file" id="p_file" accept="application/pdf,.pdf"></label>' :
+    (P.busy ? '<p class="note">קורא את הקובץ…</p>' :
+    '<p class="note">' + esc(P.name) + '</p>' +
+    (P.detect === 'full' ? '<p class="note">הסכומים זוהו מתוך הקובץ. בדוק שהם נכונים לפני השמירה.</p>' : P.detect === 'partial' ? '<p class="warn">הסכומים זוהו באופן חלקי. בדוק אותם מול הקובץ.</p>' : '<p class="warn">לא הצלחתי לזהות סכומים בקובץ. הזן אותם ידנית.</p>') +
+    dateField('p_date', P.date, 'תאריך התשלום', 'data-p="date"') + periodSelect('p', P.period) + '<div class="grid2 keep"><label>סכום לפני מע"מ<input class="num" inputmode="decimal" id="p_amount" data-p="amount" value="' + esc(P.amount) + '"></label><label>מע"מ<input class="num" inputmode="decimal" id="p_vat" data-p="vat" value="' + esc(P.vat) + '"></label></div>' +
+    (P.error ? '<p class="err" role="alert">' + esc(P.error) + '</p>' : '') + '<div class="chips"><button class="primary" data-act="savePay">שמור תשלום</button><button data-act="cancelPay">ביטול</button></div>')) + '</div>' +
+    '<div class="panel"><div class="top" style="margin:0"><h2>תשלומים שמורים</h2>' + (years.length > 1 ? '<select id="payYear" style="width:auto" aria-label="שנה"><option value="all">כל השנים</option>' + years.map(y => '<option' + (y === payYear ? ' selected' : '') + '>' + y + '</option>').join('') + '</select>' : '') + '</div>' +
+    (rows || '<p class="note">עדיין לא נשמרו תשלומים. העלה את קובץ הפירוט הראשון למעלה.</p>') + '</div></div>';
+}
+function periodSelect(prefix, period, label) {
+  const [y, m] = (period || today().slice(0, 7)).split('-').map(Number), now = new Date().getFullYear();
+  let ys = ''; for (let i = now + 1; i >= now - 6; i--) ys += '<option' + (i === y ? ' selected' : '') + '>' + i + '</option>';
+  return '<div class="label"><span>' + esc(label || 'עבור חודש') + '</span><div class="grid2 keep"><select id="' + prefix + '_m" aria-label="חודש">' + MONTHS.map((n, i) => '<option value="' + pad(i + 1) + '"' + (i + 1 === m ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><select id="' + prefix + '_y" aria-label="שנה">' + ys + '</select></div></div>';
+}
+function viewInvoice() {
+  const s = st(), total = round2((Number(I.amount) || 0) + (Number(I.vat) || 0));
+  const missing = [!s.issuer.name && 'שם העוסק', !s.issuer.address && 'כתובת העוסק'].filter(Boolean);
+  const warnAlloc = Number(I.amount) > ALLOCATION_THRESHOLD && !I.allocationNo;
+  return '<div class="top"><h1>' + esc(s.docTitle) + ' מס\' ' + s.nextInvoiceNo + '</h1><button data-act="nav" data-to="payments">חזרה לתשלומים</button></div><div class="stack"><div class="panel">' +
+    (missing.length ? '<p class="warn">כדי להפיק חשבונית חסרים: ' + missing.join(', ') + '. <button class="link" data-act="nav" data-to="setup">למסך ההגדרות</button></p>' : '') +
+    dateField('i_date', I.date, 'תאריך החשבונית', 'data-i="date"') +
+    periodSelect('i', I.period, 'עבור התקופה: מחודש') + periodSelect('j', I.periodTo, 'עד חודש') +
+    '<label>עבור שירות<input id="i_service" data-i="service" value="' + esc(I.service) + '"></label>' +
+    '<div class="grid2 keep"><label>סכום לפני מע"מ<input class="num" inputmode="decimal" id="i_amount" data-i="amount" value="' + esc(I.amount) + '"></label><label>מע"מ<input class="num" inputmode="decimal" id="i_vat" data-i="vat" value="' + esc(I.vat) + '"></label></div>' +
+    '<div class="total"><span>סה"כ כולל מע"מ</span><span id="i_total">' + money(total) + '</span></div>' +
+    '<label>מספר הקצאה מרשות המסים <small>נדרש מעל ₪' + ALLOCATION_THRESHOLD.toLocaleString('he-IL') + ' לפני מע"מ</small><input id="i_alloc" data-i="allocationNo" class="num" inputmode="numeric" value="' + esc(I.allocationNo) + '"></label>' +
+    '<p class="warn" id="i_allocWarn"' + (warnAlloc ? '' : ' hidden') + '>הסכום מעל הסף וחסר מספר הקצאה. בקש אותו מרשות המסים עבור חשבונית מס\' ' + s.nextInvoiceNo + ' והזן אותו כאן לפני ההפקה.</p>' +
+    '<p class="note">לכבוד ' + esc(s.customer.name) + ', מספר ספק: ' + (esc(s.customer.supplierNo) || 'טרם הוזן') + '. אפשר לשנות במסך ההגדרות.</p>' +
+    '<p class="note">אחרי ההפקה מספר החשבונית תפוס ואי אפשר למחוק או לערוך אותה.</p>' +
+    (I.error ? '<p class="err" role="alert">' + esc(I.error) + '</p>' : '') +
+    '<button class="primary" data-act="issue"' + (missing.length || I.busy ? ' disabled' : '') + '>' + (I.busy ? 'מפיק…' : 'הפק חשבונית') + '</button></div></div>';
+}
+function viewSetup() {
+  const s = st();
+  S = S || { issuer: { ...s.issuer }, customer: { ...s.customer }, rates: { ...s.rates }, docTitle: s.docTitle, service: s.service, nextInvoiceNo: s.nextInvoiceNo };
+  const inp = (path, label, cls, small) => { const [a, b] = path.split('.'); const val = b ? S[a][b] : S[a]; return '<label>' + esc(label) + (small ? ' <small>' + esc(small) + '</small>' : '') + '<input id="s_' + path.replace('.', '_') + '" data-s="' + path + '" ' + (cls ? 'class="num" inputmode="decimal"' : '') + ' value="' + esc(val) + '"></label>'; };
+  return backBar('הגדרות') + '<div class="stack"><div class="panel"><h2>פרטי העוסק</h2><div class="grid2">' + inp('issuer.name', 'שם מלא') + inp('issuer.osek', 'מספר עוסק מורשה', true) + inp('issuer.address', 'כתובת') + inp('issuer.phone', 'טלפון', false, 'לא חובה') + '</div></div>' +
+    '<div class="panel"><h2>פרטי הלקוח בחשבונית</h2><div class="grid2">' + inp('customer.name', 'שם הלקוח') + inp('customer.address', 'כתובת') + inp('customer.taxId', 'ח.פ./ע.מ. של הלקוח', true) + inp('customer.supplierNo', 'מספר הספק שלי', true) + '</div></div>' +
+    '<div class="panel"><h2>חשבונית</h2><div class="grid2"><label>כותרת המסמך<select id="s_docTitle" data-s="docTitle">' + ['חשבונית מס', 'חשבונית מס / קבלה'].map(t => '<option' + (t === S.docTitle ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></label>' + inp('nextInvoiceNo', 'המספר הסידורי הבא', true, 'המשך מהחשבונית האחרונה שהפקת') + '</div>' + inp('service', 'תיאור השירות') + '</div>' +
+    '<div class="panel"><h2>תעריפים ומע"מ</h2><p class="note">תעריף חדש חל רק על ביקורים שיוזנו מעכשיו והלאה.</p><div class="grid3">' + inp('rates.genNew', 'ביקור ראשון, נשים', true) + inp('rates.point', 'נקודה', true) + inp('rates.iud', 'התקן', true) + inp('rates.hrNew', 'חדשה, סיכון גבוה', true) + inp('rates.hrRet', 'חוזר, סיכון גבוה', true) + inp('rates.vat', 'מע"מ %', true) + '</div></div>' +
+    '<button class="primary" data-act="saveSetup">שמור הגדרות</button>' +
+    '<div class="panel"><h2>טיפולים מוגדרים</h2>' + s.treatments.map(t => '<div class="row"><div class="who">' + esc(t.name) + ' <b>' + t.points + '</b> נק\'</div><button class="small danger" data-act="delTreatment" data-id="' + t.id + '">' + (armed === t.id ? 'לאשר מחיקה?' : 'מחיקה') + '</button></div>').join('') +
+    '<div class="grid2 keep"><label>שם הטיפול<input id="newName" autocomplete="off"></label><label>נקודות<input id="newPoints" class="num" inputmode="decimal"></label></div><div><button class="small" data-act="saveTreatment">הוסף טיפול</button></div></div></div>';
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('input', e => {
+  const t = e.target, d = t.dataset;
+  let value = t.value;
+  if (d.date) {
+    const formatted = formatDateTyping(t.value);
+    if (formatted !== t.value) t.value = formatted;
+    value = parseDate(formatted);
+    /* Half-typed dates leave the last valid date in place. */
+    if (!value) return;
+    t.dataset.last = fmtDate(value);
+  }
+  if (d.f === 'idNo') value = t.value = t.value.replace(/\D/g, '');
+  if (d.f) {
+    F[d.f] = value;
+    /* A one-letter box moves on to the next field by itself. */
+    if (value.trim() && d.f === 'initLast') $('f_initFirst').focus();
+    if (value.trim() && d.f === 'initFirst') $('f_idNo').focus();
+    if (d.f === 'date') {
+      const id = t.id;
+      render();
+      const again = $(id);
+      if (again && e.isTrusted) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+      return;
+    }
+    updateFormBits();
+  } else if (d.r) { R[d.r] = value; }
+  else if (d.p) { P[d.p] = value; }
+  else if (d.i) {
+    I[d.i] = value;
+    if ($('i_total')) $('i_total').textContent = money((Number(I.amount) || 0) + (Number(I.vat) || 0));
+    if ($('i_allocWarn')) $('i_allocWarn').hidden = !(Number(I.amount) > ALLOCATION_THRESHOLD && !I.allocationNo);
+  } else if (d.s) {
+    const [a, b] = d.s.split('.');
+    if (b) S[a][b] = t.value; else S[a] = t.value;
+  }
+});
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if (t.dataset.date) {
+    const iso = parseDate(t.value);
+    if (iso) t.value = fmtDate(iso);
+    else { if (t.value) toast('התאריך לא תקין. כתוב אותו כך: 05/11/2026', true); t.value = t.dataset.last; }
+  }
+  if (t.dataset.r) { render(); return; }
+  if (t.id === 'payYear') { payYear = t.value; render(); return; }
+  if (t.id === 'p_m' || t.id === 'p_y') { P.period = $('p_y').value + '-' + $('p_m').value; return; }
+  if (t.id === 'i_m' || t.id === 'i_y') { I.period = $('i_y').value + '-' + $('i_m').value; return; }
+  if (t.id === 'j_m' || t.id === 'j_y') { I.periodTo = $('j_y').value + '-' + $('j_m').value; return; }
+  if (t.id === 'p_file' && t.files[0]) {
+    const file = t.files[0], date = today();
+    P = { file, name: file.name, date, period: previousMonth(date), amount: '', vat: '', detect: 'none', busy: true };
+    render();
+    try {
+      const text = await readPdfText(file), found = detectAmounts(text, st().rates.vat), period = detectPeriod(text);
+      if (found) { P.amount = found.amount; P.vat = found.vat; P.detect = found.certain ? 'full' : 'partial'; }
+      if (period) P.period = period;
+    } catch (err) { P.detect = 'none'; }
+    P.busy = false; render();
+  }
+});
+document.addEventListener('submit', e => { if (e.target.id === 'visitForm') { e.preventDefault(); saveVisit(); } });
+
+function arm(id) { armed = id; render(); setTimeout(() => { if (armed === id) { armed = null; render(); } }, 4000); }
+async function safely(fn) { try { return await fn(); } catch (err) { console.error(err); toast(err.message || 'הפעולה נכשלה', true); } }
+
+async function saveVisit() {
+  if (!F.type) { formError = 'בחר אם הביקור ראשון או חוזר.'; render(); return; }
+  if (!F.date) { formError = 'בחר תאריך.'; render(); return; }
+  if (F.idNo && F.idNo.length !== 9) { formError = 'תעודת זהות צריכה להכיל 9 ספרות. אפשר גם להשאיר את השדה ריק.'; render(); $('f_idNo').focus(); return; }
+  const v = formVisit(), id = F.editingId, btn = $('submitBtn');
+  btn.disabled = true;
+  await safely(async () => {
+    await store.mutate(s => {
+      if (id) {
+        const i = s.visits.findIndex(x => x.id === id);
+        /* An edit recalculates with the rates the visit was first saved under. */
+        if (i >= 0) s.visits[i] = { ...s.visits[i], ...v, pay: visitPay(v, s.visits[i].rates || s.rates) };
+      } else s.visits.push({ id: uid(), ...v, rates: { ...s.rates }, pay: visitPay(v, s.rates) });
+    });
+    toast(id ? 'הביקור עודכן' : 'הביקור נשמר. אפשר להזין מטופלת חדשה.');
+    const date = F.date;
+    F = blankForm(date, F.role); formError = ''; render(); window.scrollTo(0, 0);
+    if ($('f_initLast')) $('f_initLast').focus();
+  });
+  if ($('submitBtn')) $('submitBtn').disabled = false;
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCal(); });
+document.addEventListener('focusin', e => { if (e.target.closest('.initials')) e.target.select(); });
+document.addEventListener('click', async e => {
+  if (cal && !e.target.closest('.cal') && !e.target.closest('.calbtn')) closeCal();
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const a = b.dataset.act, id = b.dataset.id;
+  if (b.tagName === 'BUTTON' && b.type !== 'submit') e.preventDefault();
+  switch (a) {
+    case 'nav': go(b.dataset.to); break;
+    case 'pick': { const i = $(b.dataset.for); if (cal && cal.input === i) closeCal(); else openCal(i); break; }
+    case 'calNav': {
+      const d = new Date(cal.y, cal.m + Number(b.dataset.dm), 1);
+      cal.y = d.getFullYear(); cal.m = d.getMonth(); drawCal(); break;
+    }
+    case 'calDay': {
+      const i = cal.input;
+      closeCal();
+      i.value = fmtDate(b.dataset.iso);
+      i.dispatchEvent(new Event('input', { bubbles: true }));
+      const live = $(i.id);
+      if (live) live.dispatchEvent(new Event('change', { bubbles: true }));
+      break;
+    }
+    case 'setType': F.type = b.dataset.type; formError = ''; render(); break;
+    case 'addPick': {
+      const name = b.dataset.name, points = Number(b.dataset.points), ex = F.picks.find(p => p.name === name);
+      if (ex) ex.count++; else F.picks.push({ name, points, count: 1 });
+      updateFormBits(); break;
+    }
+    case 'removePick': { const p = F.picks[Number(b.dataset.i)]; if (p.count > 1) p.count--; else F.picks.splice(Number(b.dataset.i), 1); updateFormBits(); break; }
+    case 'toggleAdd': F.addOpen = !F.addOpen; render(); break;
+    case 'toggleIud': F.iud = !F.iud; render(); if (F.iud && $('f_iudType')) $('f_iudType').focus(); break;
+    case 'saveTreatment': {
+      const name = $('newName').value.trim(), points = Number($('newPoints').value);
+      if (!name || !(points > 0)) { toast('הזן שם טיפול ומספר נקודות', true); break; }
+      await safely(async () => {
+        await store.mutate(s => { s.treatments.push({ id: uid(), name, points }); });
+        if (F) F.addOpen = false;
+        toast('הטיפול נוסף לרשימה'); render();
+      });
+      break;
+    }
+    case 'delTreatment':
+      if (armed !== id) { arm(id); break; }
+      armed = null;
+      await safely(async () => { await store.mutate(s => { s.treatments = s.treatments.filter(t => t.id !== id); }); render(); });
+      break;
+    case 'editVisit': {
+      const v = st().visits.find(x => x.id === id);
+      F = { role: v.role, editingId: id, date: v.date, initLast: v.initLast || '', initFirst: v.initFirst || '', idNo: v.idNo, type: v.type, picks: (v.treatments || []).map(t => ({ ...t })), manual: v.manual ? String(v.manual) : '', iud: !!v.iud, iudType: v.iudType || '', addOpen: false };
+      render(); window.scrollTo(0, 0); break;
+    }
+    case 'cancelEdit': F = blankForm(F.date, F.role); render(); break;
+    case 'delVisit':
+      if (armed !== id) { arm(id); break; }
+      armed = null;
+      await safely(async () => { await store.mutate(s => { s.visits = s.visits.filter(v => v.id !== id); }); toast('הביקור נמחק'); render(); });
+      break;
+    case 'range': {
+      const d = new Date(), y = d.getFullYear(), m = d.getMonth();
+      if (b.dataset.r === 'this') R = { from: isoDate(new Date(y, m, 1)), to: isoDate(d) };
+      else R = { from: isoDate(new Date(y, m - 1, 1)), to: isoDate(new Date(y, m, 0)) };
+      render(); break;
+    }
+    case 'excel':
+      await safely(async () => {
+        b.disabled = true;
+        await loadScript(LIBS.excel);
+        const s = st(), sum = summarize(s.visits, R.from, R.to, s.rates.vat);
+        const buf = await buildWorkbook(sum, R.from, R.to, s.rates.vat).xlsx.writeBuffer();
+        await deliverFile(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'דוח_' + R.from + '_' + R.to + '.xlsx');
+      });
+      b.disabled = false; break;
+    case 'cancelPay': P = null; render(); break;
+    case 'savePay': {
+      const amount = round2(P.amount), vat = round2(P.vat);
+      if (!P.date || !(amount > 0) || !(vat >= 0)) { P.error = 'הזן תאריך, סכום ומע"מ.'; render(); break; }
+      b.disabled = true;
+      await safely(async () => {
+        const pid = uid(), file = 'תשלומים/' + P.date + '_' + pid + '.pdf';
+        await store.backend.putFile(file, P.file);
+        await store.mutate(s => { s.payments.push({ id: pid, date: P.date, period: P.period, amount, vat, file, name: P.name }); });
+        P = null; toast('התשלום נשמר'); render();
+      });
+      b.disabled = false; break;
+    }
+    case 'openPdf':
+      await safely(async () => { const p = st().payments.find(x => x.id === id); await deliverFile(await store.backend.getFile(p.file), 'פירוט_' + p.date + '.pdf'); });
+      break;
+    case 'delPay':
+      if (armed !== id) { arm(id); break; }
+      armed = null;
+      await safely(async () => {
+        const p = st().payments.find(x => x.id === id);
+        if (p.file) await store.backend.deleteFile(p.file);
+        await store.mutate(s => { s.payments = s.payments.filter(x => x.id !== id); });
+        toast('התשלום נמחק'); render();
+      });
+      break;
+    case 'invNew': {
+      const p = st().payments.find(x => x.id === id), s = st();
+      I = { paymentId: id, date: today(), period: p.period, periodTo: p.period, service: s.service, amount: p.amount, vat: p.vat, allocationNo: '' };
+      view = 'invoice'; render(); window.scrollTo(0, 0); break;
+    }
+    case 'invCopy':
+      await safely(async () => { const inv = st().invoices.find(x => x.id === id); await deliverFile(await invoicePdf(inv, 'העתק'), 'חשבונית_' + inv.no + '_העתק.pdf'); });
+      break;
+    case 'issue': await issueInvoice(); break;
+    case 'saveSetup': {
+      const n = o => { const r = {}; for (const k in o) r[k] = Number(o[k]) || 0; return r; };
+      const next = Math.floor(Number(S.nextInvoiceNo));
+      const used = st().invoices.reduce((m, i) => Math.max(m, i.no), 0);
+      if (!(next > used)) { toast('המספר הסידורי חייב להיות גדול מ-' + used, true); break; }
+      await safely(async () => {
+        await store.mutate(s => { s.issuer = { ...S.issuer }; s.customer = { ...S.customer }; s.rates = n(S.rates); s.rates.genRet = s.rates.genRet || 0; s.docTitle = S.docTitle; s.service = S.service; s.nextInvoiceNo = next; });
+        S = null; toast('ההגדרות נשמרו'); render();
+      });
+      break;
+    }
+    case 'signout': if (signOut) signOut(); break;
+  }
+});
+
+async function issueInvoice() {
+  const amount = round2(I.amount), vat = round2(I.vat);
+  if (!I.date || !(amount > 0)) { I.error = 'הזן תאריך וסכום.'; render(); return; }
+  if (I.period > I.periodTo) { I.error = 'חודש ההתחלה מאוחר מחודש הסיום.'; render(); return; }
+  I.busy = true; I.error = ''; render();
+  const f = I;
+  try {
+    /* The number is taken inside mutate, so it stays sequential even if another device issued one a moment earlier. */
+    const inv = await store.mutate(s => {
+      const rec = { id: uid(), no: s.nextInvoiceNo, paymentId: f.paymentId, date: f.date, period: f.period, periodTo: f.periodTo, service: f.service, amount, vat, total: round2(amount + vat), vatRate: round2(vat / amount * 100), allocationNo: f.allocationNo, docTitle: s.docTitle, issuer: { ...s.issuer }, customer: { ...s.customer } };
+      s.nextInvoiceNo++;
+      s.invoices.push(rec);
+      return rec;
+    });
+    const blob = await invoicePdf(inv, 'מקור');
+    try { await store.backend.putFile('חשבוניות/' + inv.no + '.pdf', blob); toast('חשבונית ' + inv.no + ' הופקה ונשמרה'); }
+    catch (err) { toast('החשבונית הופקה אך לא נשמרה בענן. שמור את הקובץ שיורד.', true); }
+    await deliverFile(blob, 'חשבונית_' + inv.no + '.pdf');
+    I = null; view = 'payments'; render();
+  } catch (err) {
+    console.error(err);
+    I.busy = false; I.error = err.message || 'ההפקה נכשלה'; render();
+  }
+}
+
+/* ---------- Startup ---------- */
+function demoSeed() {
+  const s = defaults(), d = new Date(), date = n => isoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() - n));
+  s.issuer.name = 'ד"ר לדוגמה'; s.issuer.address = 'רחוב הדוגמה 1, עיר';
+  s.treatments.push({ id: 'ex1', name: 'טיפול לדוגמה', points: 0.5 });
+  const add = v => s.visits.push({ id: uid(), treatments: [], manual: 0, points: 0, iud: false, iudType: '', initials: '', idNo: '', ...v, pay: visitPay(v, s.rates) });
+  add({ role: 'gen', date: date(0), initLast: 'א', initFirst: 'ב', initials: 'א.ב', type: 'new', treatments: [{ name: 'US Gynecology', points: 1.2, count: 1 }], points: 1.2 });
+  add({ role: 'gen', date: date(0), initLast: 'ג', initFirst: 'ד', initials: 'ג.ד', type: 'ret' });
+  add({ role: 'gen', date: date(1), initLast: 'ה', initFirst: 'ו', initials: 'ה.ו', type: 'new', iud: true, iudType: 'התקן לדוגמה' });
+  add({ role: 'hr', date: date(0), initLast: 'ז', initFirst: 'ח', initials: 'ז.ח', type: 'new' });
+  add({ role: 'hr', date: date(1), initLast: 'ט', initFirst: 'י', initials: 'ט.י', type: 'ret' });
+  s.payments.push({ id: 'ex-pay', date: date(0), period: previousMonth(date(0)), amount: 12000, vat: 2160, file: null, name: 'דוגמה' });
+  return s;
+}
+async function startGraph() {
+  await loadScript(LIBS.msal);
+  const scopes = ['Files.ReadWrite'];
+  const app = new msal.PublicClientApplication({ auth: { clientId: CONFIG.clientId, authority: 'https://login.microsoftonline.com/common', redirectUri: location.origin + location.pathname }, cache: { cacheLocation: 'localStorage' } });
+  await app.initialize();
+  const res = await app.handleRedirectPromise();
+  const acct = (res && res.account) || app.getAllAccounts()[0];
+  if (!acct) {
+    $('app').innerHTML = '<div class="stack"><h1>יומן מרפאה</h1><p class="note">הנתונים נשמרים ב-OneDrive שלך. התחבר עם חשבון Microsoft כדי להמשיך.</p><button class="primary" id="signin">התחברות עם Microsoft</button></div>';
+    $('signin').onclick = () => app.loginRedirect({ scopes });
+    return null;
+  }
+  account = acct.username;
+  signOut = () => app.logoutRedirect({ account: acct });
+  const getToken = async () => {
+    try { return (await app.acquireTokenSilent({ scopes, account: acct })).accessToken; }
+    catch (e) {
+      if (e instanceof msal.InteractionRequiredAuthError) { await app.acquireTokenRedirect({ scopes, account: acct }); }
+      throw e;
+    }
+  };
+  return GraphBackend(getToken, (u, o) => fetch(u, o), CONFIG.folder);
+}
+async function start() {
+  try {
+    const backend = DEMO ? DemoBackend() : await startGraph();
+    if (!backend) return;
+    store = makeStore(backend);
+    await store.refresh();
+    if (DEMO && store.isNew) { store.state = demoSeed(); await backend.save(store.state); }
+    const h = location.hash.slice(1);
+    go(['gen', 'hr', 'report', 'payments', 'setup'].includes(h) ? h : 'home');
+  } catch (err) {
+    console.error(err);
+    $('app').innerHTML = '<div class="stack"><h1>יומן מרפאה</h1><p class="err">לא הצלחתי לטעון את הנתונים: ' + esc(err.message) + '</p><button id="retry">נסה שוב</button></div>';
+    $('retry').onclick = start;
+  }
+}
+window.__clinic = { parseDate, formatDateTyping, summarize, detectAmounts, detectPeriod, visitPay, GraphBackend, makeStore, buildWorkbook, invoicePdf, invoiceHtml, loadScript, LIBS };
+start();
+</script>
+</body></html>
